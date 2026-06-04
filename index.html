@@ -1276,10 +1276,12 @@ window.showDiscover=function(tab,btn){
   document.getElementById('discover-sahaba').style.display=tab==='sahaba'?'block':'none';
   document.getElementById('discover-duas').style.display=tab==='duas'?'block':'none';
   document.getElementById('discover-quiz').style.display=tab==='quiz'?'block':'none';
+  document.getElementById('discover-coran').style.display=tab==='coran'?'block':'none';
   document.getElementById('discover-hifz').style.display=tab==='hifz'?'block':'none';
   if(tab==='duas')loadDuas();
   if(tab==='quiz')initQuizHome();
   if(tab==='hifz')initHifz();
+  if(tab==='coran')initCoran();
 };
 
 // DUAS
@@ -1623,6 +1625,33 @@ function renderHifzHistory(){
   }).join('');
 }
 
+
+// ---- CORAN ----
+const SOURATES=[
+  {n:1,ar:"الفاتحة",fr:"Al-Fatiha",v:7,lieu:"Mecquoise"},
+  {n:2,ar:"البقرة",fr:"Al-Baqara",v:286,lieu:"Médinoise"},
+  {n:3,ar:"آل عمران",fr:"Al-Imran",v:200,lieu:"Médinoise"},
+  {n:4,ar:"النساء",fr:"An-Nisa",v:176,lieu:"Médinoise"},
+  {n:5,ar:"المائدة",fr:"Al-Maida",v:120,lieu:"Médinoise"},
+  {n:6,ar:"الأنعام",fr:"Al-An'am",v:165,lieu:"Mecquoise"},
+  {n:7,ar:"الأعراف",fr:"Al-A'raf",v:206,lieu:"Mecquoise"},
+  {n:8,ar:"الأنفال",fr:"Al-Anfal",v:75,lieu:"Médinoise"},
+  {n:9,ar:"التوبة",fr:"At-Tawba",v:129,lieu:"Médinoise"},
+  {n:10,ar:"يونس",fr:"Yunus",v:109,lieu:"Mecquoise"},
+  {n:18,ar:"الكهف",fr:"Al-Kahf",v:110,lieu:"Mecquoise"},
+  {n:19,ar:"مريم",fr:"Maryam",v:98,lieu:"Mecquoise"},
+  {n:36,ar:"يس",fr:"Ya-Sin",v:83,lieu:"Mecquoise"},
+  {n:55,ar:"الرحمن",fr:"Ar-Rahman",v:78,lieu:"Mecquoise"},
+  {n:67,ar:"الملك",fr:"Al-Mulk",v:30,lieu:"Mecquoise"},
+  {n:112,ar:"الإخلاص",fr:"Al-Ikhlas",v:4,lieu:"Mecquoise"},
+  {n:113,ar:"الفلق",fr:"Al-Falaq",v:5,lieu:"Mecquoise"},
+  {n:114,ar:"الناس",fr:"An-Nas",v:6,lieu:"Mecquoise"},
+];
+function initCoran(){document.getElementById('coran-list-view').style.display='block';document.getElementById('sourate-detail-view').style.display='none';renderSourates(SOURATES);}
+function renderSourates(list){const el=document.getElementById('sourate-list');el.innerHTML=list.map(s=>`<div class="sourate-item" onclick="openSourate(${s.n})"><div class="sourate-num">${s.n}</div><div class="sourate-info"><div class="sourate-name-fr">${s.fr}</div><div class="sourate-meta">${s.v} versets \xB7 ${s.lieu}</div></div><div class="sourate-name-ar">${s.ar}</div></div>`).join('');}
+window.filterSourates=function(){const q=document.getElementById('coran-search').value.toLowerCase();renderSourates(SOURATES.filter(s=>s.fr.toLowerCase().includes(q)||s.ar.includes(q)||String(s.n).includes(q)));};
+window.openSourate=function(n){const s=SOURATES.find(x=>x.n===n);if(!s)return;document.getElementById('coran-list-view').style.display='none';document.getElementById('sourate-detail-view').style.display='block';document.getElementById('detail-ar').textContent=s.ar;document.getElementById('detail-fr').textContent=s.fr;document.getElementById('detail-meta').textContent='Sourate n\xB0'+s.n+' \xB7 '+s.v+' versets \xB7 '+s.lieu;document.getElementById('detail-bismillah').style.display=s.n===9?'none':'block';const vc=document.getElementById('versets-container');vc.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text-soft)">Chargement...</div>';fetch('https://api.alquran.cloud/v1/surah/'+n+'/fr.hamidullah').then(r=>r.json()).then(data=>{if(data.code===200){vc.innerHTML=data.data.ayahs.map(a=>`<div class="verset-item"><div class="verset-num">${a.numberInSurah}</div><div class="verset-content"><div class="verset-fr">${a.text}</div></div></div>`).join('');}else{vc.innerHTML='<p style="color:var(--text-soft);text-align:center;padding:1rem">Impossible de charger. V\xe9rifie ta connexion.</p>';}}).catch(()=>{vc.innerHTML='<p style="color:var(--text-soft);text-align:center;padding:1rem">Impossible de charger.</p>';});};
+window.backToList=function(){document.getElementById('coran-list-view').style.display='block';document.getElementById('sourate-detail-view').style.display='none';};
 updateStepsDisplay();
 </script>
 </body>
