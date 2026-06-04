@@ -205,6 +205,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .chat-msg.other .chat-bubble{background:var(--surface);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px;}
 .chat-name{font-size:0.7rem;color:var(--text-soft);margin-bottom:3px;}
 .chat-time{font-size:0.65rem;opacity:0.7;margin-top:3px;text-align:right;}
+
+.reply-preview{display:none;background:var(--sage-light);border-radius:10px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.78rem;color:var(--sage-dark);border-left:3px solid var(--sage);position:relative;}
+.reply-preview-cancel{position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--sage-dark);font-size:1rem;line-height:1;}
+.reply-quote{background:rgba(0,0,0,0.1);border-radius:6px;padding:3px 7px;font-size:0.75rem;margin-bottom:4px;opacity:0.85;border-left:2px solid rgba(255,255,255,0.5);}
+.chat-reply-btn{background:none;border:none;cursor:pointer;color:var(--text-soft);font-size:0.7rem;padding:2px 6px;border-radius:6px;transition:all 0.2s;margin-top:3px;}
+.chat-reply-btn:hover{background:var(--sage-light);color:var(--sage-dark);}
+.tag-highlight{color:var(--sage-dark);font-weight:600;}
+.chat-msg.me .tag-highlight{color:var(--gold-light);font-weight:600;}
 .chat-input-row{display:flex;gap:8px;}
 .chat-input{flex:1;padding:0.65rem 0.9rem;border:1px solid var(--border);border-radius:20px;background:var(--cream);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;}
 .chat-send{width:40px;height:40px;border-radius:50%;background:var(--sage);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
@@ -327,6 +335,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         <div class="auth-field"><label>Email</label><input type="email" id="login-email" placeholder="ton@email.com"/></div>
         <div class="auth-field"><label>Mot de passe</label><input type="password" id="login-pass" placeholder="••••••"/></div>
         <button class="btn-primary" onclick="login()">Se connecter</button>
+        <p style="text-align:center;margin-top:0.75rem"><button onclick="forgotPassword()" style="background:none;border:none;color:var(--sage);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Mot de passe oublié ?</button></p>
       </div>
       <div id="register-form" style="display:none">
         <div class="auth-field"><label>Prénom / Pseudo</label><input type="text" id="reg-name" placeholder="Ton prénom..."/></div>
@@ -849,8 +858,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         </div>
         <div class="card" style="padding:1rem">
           <div class="chat-messages" id="chat-messages"></div>
+          <div class="reply-preview" id="reply-preview">
+            <span id="reply-preview-text"></span>
+            <button class="reply-preview-cancel" onclick="cancelReply()">✕</button>
+          </div>
           <div class="chat-input-row">
-            <input class="chat-input" id="chat-input" placeholder="Écris un message..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+            <input class="chat-input" id="chat-input" placeholder="Écris un message... ou @prénom" onkeydown="if(event.key==='Enter')sendMsg()"/>
             <button class="chat-send" onclick="sendMsg()"><i class="ti ti-send"></i></button>
           </div>
         </div>
@@ -862,7 +875,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -988,7 +1001,18 @@ window.login=async function(){
   }
 };
 
-window.register=async function(){
+window.forgotPassword=async function(){
+  const e=document.getElementById('login-email').value.trim();
+  if(!e){document.getElementById('auth-error').textContent='Entre ton email d\'abord.';return;}
+  try{
+    await sendPasswordResetEmail(auth,e);
+    document.getElementById('auth-error').style.color='var(--sage)';
+    document.getElementById('auth-error').textContent='Email de réinitialisation envoyé ! Vérifie ta boîte mail.';
+  } catch(err){
+    document.getElementById('auth-error').style.color='var(--rose)';
+    document.getElementById('auth-error').textContent='Email introuvable ou invalide.';
+  }
+};
   const name=document.getElementById('reg-name').value.trim();
   const e=document.getElementById('reg-email').value.trim();
   const p=document.getElementById('reg-pass').value;
@@ -1306,13 +1330,17 @@ window.toggleAmeen=async function(id,isActive){
 let currentPole=null;
 let chatUnsub=null;
 
+let replyTo=null;
+
 window.enterPole=function(pole,icon,title){
   currentPole=pole;
+  replyTo=null;
+  document.getElementById('reply-preview').style.display='none';
   document.getElementById('poles-view').style.display='none';
   document.getElementById('chat-view').style.display='block';
   document.getElementById('pole-title-display').textContent=icon+' '+title;
   if(chatUnsub){chatUnsub();chatUnsub=null;}
-  const q=query(collection(db,'messages'),where('pole','==',pole),orderBy('createdAt','asc'),limit(60));
+  const q=query(collection(db,'messages'),where('pole','==',pole),orderBy('createdAt','asc'),limit(80));
   chatUnsub=onSnapshot(q,(snap)=>{
     const el=document.getElementById('chat-messages');
     el.innerHTML='';
@@ -1322,18 +1350,40 @@ window.enterPole=function(pole,icon,title){
       const isMe=m.uid===currentUser.uid;
       const t=m.createdAt?.toDate?m.createdAt.toDate():new Date();
       const time=t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-      el.innerHTML+=`<div class="chat-msg ${isMe?'me':'other'}">
+      // Format tags @nom en surbrillance
+      const formatted=m.text.replace(/@([\w\-\u00C0-\u024F]+)/g,'<span class="tag-highlight">@$1</span>');
+      // Bloc de réponse citée
+      const replyBlock=m.replyTo?`<div class="reply-quote">↩ ${m.replyTo.name} : ${m.replyTo.text.substring(0,60)}${m.replyTo.text.length>60?'...':''}</div>`:'';
+      el.innerHTML+=`<div class="chat-msg ${isMe?'me':'other'}" id="msg-${d.id}">
         ${!isMe?`<div class="chat-name">${m.name}</div>`:''}
-        <div class="chat-bubble">${m.text}<div class="chat-time">${time}</div></div>
+        <div class="chat-bubble">
+          ${replyBlock}
+          ${formatted}
+          <div class="chat-time">${time}</div>
+        </div>
+        ${!isMe?`<button class="chat-reply-btn" onclick="startReply('${d.id}','${m.name.replace(/'/g,"\\'")}','${m.text.substring(0,50).replace(/'/g,"\\'").replace(/\n/g,' ')}')">↩ Répondre</button>`:''}
       </div>`;
     });
     el.scrollTop=el.scrollHeight;
   });
 };
 
+window.startReply=function(id,name,text){
+  replyTo={id,name,text};
+  document.getElementById('reply-preview').style.display='block';
+  document.getElementById('reply-preview-text').textContent='↩ Répondre à '+name+' : '+text;
+  document.getElementById('chat-input').focus();
+};
+
+window.cancelReply=function(){
+  replyTo=null;
+  document.getElementById('reply-preview').style.display='none';
+};
+
 window.exitPole=function(){
   if(chatUnsub){chatUnsub();chatUnsub=null;}
-  currentPole=null;
+  currentPole=null;replyTo=null;
+  document.getElementById('reply-preview').style.display='none';
   document.getElementById('poles-view').style.display='block';
   document.getElementById('chat-view').style.display='none';
 };
@@ -1344,7 +1394,10 @@ window.sendMsg=async function(){
   if(!txt||!currentPole)return;
   inp.value='';
   const name=currentUser.displayName||currentUser.email.split('@')[0];
-  await addDoc(collection(db,'messages'),{text:txt,name,uid:currentUser.uid,pole:currentPole,createdAt:serverTimestamp()});
+  const msgData={text:txt,name,uid:currentUser.uid,pole:currentPole,createdAt:serverTimestamp()};
+  if(replyTo)msgData.replyTo={id:replyTo.id,name:replyTo.name,text:replyTo.text};
+  await addDoc(collection(db,'messages'),msgData);
+  cancelReply();
 };
 
 // ---- QUIZ ----
