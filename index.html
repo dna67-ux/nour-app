@@ -1013,6 +1013,8 @@ window.forgotPassword=async function(){
     document.getElementById('auth-error').textContent='Email introuvable ou invalide.';
   }
 };
+
+window.register=async function(){
   const name=document.getElementById('reg-name').value.trim();
   const e=document.getElementById('reg-email').value.trim();
   const p=document.getElementById('reg-pass').value;
